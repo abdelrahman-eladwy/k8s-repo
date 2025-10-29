@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ekart-backend-config
+  namespace: ekart
+data:
+  dbUrl: "jdbc:postgresql://db:5432/ekartdb"
+  dbUsername: "postgres"
+  REDIS_HOST: "redis"
+  frontendDomainUrl: "http://localhost:3000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ekart-backend-secret
+  namespace: ekart
+type: Opaque
+stringData:
+  dbPassword: "postgres"
+  jsonSecretKey: "afccfe8871f007ec2e9045e2a0bf59ae"
+  adminPassword: "admin123"
+  stripeApiKey: "sk_test_disabled"
+  stripeEndpointSecret: "whsec_disabled"
+  emailUsername: "your-email@example.com"
+  emailPassword: "your-email-app-password"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ekart-backend
+  namespace: ekart
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ekart-backend
+  template:
+    metadata:
+      labels:
+        app: ekart-backend
+    spec:
+      containers:
+      - name: ekart-backend
+        image: ekart-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        env:
+        - name: dbUrl
+          valueFrom:
+            configMapKeyRef:
+              name: ekart-backend-config
+              key: dbUrl
+        - name: dbUsername
+          valueFrom:
+            configMapKeyRef:
+              name: ekart-backend-config
+              key: dbUsername
+        - name: dbPassword
+          valueFrom:
+            secretKeyRef:
+              name: ekart-backend-secret
+              key: dbPassword
+        - name: jsonSecretKey
+          valueFrom:
+            secretKeyRef:
+              name: ekart-backend-secret
+              key: jsonSecretKey
+        - name: adminPassword
+          valueFrom:
+            secretKeyRef:
+              name: ekart-backend-secret
+              key: adminPassword
+        - name: frontendDomainUrl
+          valueFrom:
+            configMapKeyRef:
+              name: ekart-backend-config
+              key: frontendDomainUrl
+        - name: stripeApiKey
+          valueFrom:
+            secretKeyRef:
+              name: ekart-backend-secret
+              key: stripeApiKey
+        - name: stripeEndpointSecret
+          valueFrom:
+            secretKeyRef:
+              name: ekart-backend-secret
+              key: stripeEndpointSecret
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: ekart-backend-config
+              key: REDIS_HOST
+        - name: emailUsername
+          valueFrom:
+            secretKeyRef:
+              name: ekart-backend-secret
+              key: emailUsername
+        - name: emailPassword
+          valueFrom:
+            secretKeyRef:
+              name: ekart-backend-secret
+              key: emailPassword
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /api/v1/products
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /api/v1/products
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ekart-backend
+  namespace: ekart
+spec:
+  selector:
+    app: ekart-backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+    nodePort: 30800
+  type: NodePort
