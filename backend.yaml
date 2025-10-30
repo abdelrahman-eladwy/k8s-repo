@@ -41,7 +41,7 @@ spec:
     spec:
       containers:
       - name: ekart-backend
-        image: ekart-backend:latest
+        image: eladwy/vulnado-app:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
